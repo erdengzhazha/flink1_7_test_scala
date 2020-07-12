@@ -1,18 +1,12 @@
 package com.cw.flink.scala.connector.process
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
-import org.json4s.JsonDSL._
 import java.text.SimpleDateFormat
 import java.util.Date
-
 import com.cw.flink.scala.pojo.PvUvHourModelToMySql
 import com.cw.flink.scala.pojo.CommonModel
 import com.alibaba.fastjson.JSON
 import com.cw.flink.scala.connector.kafkaConnectorConcumerApp.logger
-import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.datastream.DataStreamSink
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks
 import org.apache.flink.streaming.api.scala.function.WindowFunction
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -20,42 +14,13 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
-import org.json4s.JsonAST.{JField, JInt, JString}
-
 import scala.collection.mutable.ArrayBuffer
-
+/**
+ *  处理数据对象
+ */
 object processCommon {
   def process(data: DataStream[String]): Unit = {
-    //对数据进行清洗
-    case class location(lon: String,
-                        lat: String)
-    case class PvUvModel(country: String,
-                         syncTime: String,
-                         role: String,
-                         city: String,
-                         lon: String,
-                         `type`: String,
-                         lib_version: String,
-                         screen_height: String,
-                         province: String,
-                         event_code: String,
-                         browser: String,
-                         browser_version: String,
-                         lat: String,
-                         screen_width: String,
-                         create_time: String,
-                         os: String,
-                         ip: String,
-                         dept_name: String,
-                         enterprise_id: String,
-                         application_id: String,
-                         token: String,
-                         user_id: String,
-                         location: location,
-                         dept_id: String,
-                         isWdzSys: String
-                        )
-
+    //---------------------------------数据清洗      开始--------------------------------------
     val logcat: DataStream[CommonModel] = data.map(str => {  //从kafka里面独处的每一行json数据  (注意这里的json数据最外层可能是数组)
       //println("没有处理过的数据"+str)
       var resultArray = JSON.parseObject(str)  //转为对象
@@ -83,14 +48,19 @@ object processCommon {
       var user_id: String= resultArray.getString("user_id")
       //------------------处理locationJson  开始-------------------
       var locationJson: String= resultArray.getString("location") //获得location的json数据
-      var locationObject = JSON.parseObject(locationJson)
+      var locationObject = JSON.parseObject(locationJson) //将location_json转为对象
       var location_lon = locationObject.getString("lon")
       var location_lat = locationObject.getString("lat")
       //------------------处理locationJson  结束-------------------
       var dept_id: String= resultArray.getString("dept_id")
       var isWdzSys: String= resultArray.getString("isWdzSys")
-      val c =CommonModel(country,
-                        syncTime,
+      //--------------------数据的格式处理 开始------------------
+
+      //--------------------数据的格式处理 结束------------------
+      //将处理后的结果数据放入 CommonModel
+      val c =CommonModel(
+        country,
+        syncTime,
         role,
         city,
         lon,
@@ -107,12 +77,13 @@ object processCommon {
         os,
         ip,dept_name,
         enterprise_id,application_id,token,user_id,location_lon,location_lat,dept_id,isWdzSys)
-      (c)
+      (c) //形成结果
     }).filter(_.application_id!="")    //过滤掉应用ID为空的
       .filter(_.syncTime!="")  //过滤掉 时间为空的数据，肯定为异常的日志数据
       .filter(_.ip!="") //过滤掉ip获取不到的
 
     //println("清洗后的数据"+logcat.toString)
+    //---------------------------------数据清洗      结束--------------------------------------
 
     //---------------------------------业务逻辑实现   开始--------------------------------------
     //设置水印
@@ -124,7 +95,7 @@ object processCommon {
         new Watermark(currentMaxTimestamp - maxOutOfOrderness)
       }
       override def extractTimestamp(element: (CommonModel), previousElementTimestamp: Long): Long = {
-        val timestamp = element.syncTime
+        val timestamp = element.syncTime // 设置 EventTime
         //println("时间为"+timestamp)
         var time = 0l
         try {
@@ -139,26 +110,15 @@ object processCommon {
         time
       }
     })
-      //.keyBy(_.application_id) //按照我时间分组
-      //.keyBy() //按照应用id为分组
       .keyBy(a => {
-        (a.application_id,a.event_code)
+        (a.application_id,a.event_code)  //同时对 应用id和事件变量分组
       })
-      .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+      .window(TumblingEventTimeWindows.of(Time.seconds(10))) //滑动EventTime窗口为 10秒
       .apply(new WindowFunction[(CommonModel),(PvUvHourModelToMySql),(String,String),TimeWindow]{
         override def apply(key: (String,String), window: TimeWindow, input: Iterable[(CommonModel)], out: Collector[(PvUvHourModelToMySql)]): Unit = {
           val iterator = input.iterator //获取window内的 json集合
           println("key ："+key._1)
-          var i=0
-//----------------------此代码是用于测试flink抽取日志时间是否准确
-//          while (iterator.hasNext){
-//            val next =iterator.next()
-//            //var time: String =""
-//            //time = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(new Date(next.syncTime.toLong))
-//            println("***********这是第"+i+"个"+next.syncTime+"key:"+next.application_id)
-//            i+=1
-//          }
-//----------------------此代码是用于测试flink抽取日志时间是否准确
+          var i=0 //测试用的计数变量不用关注
           var pv: Int = 0
           var uv: Int = 0
           var manager_num_rate: Long = 0
@@ -217,7 +177,7 @@ object processCommon {
         }
       })
 
-
+    //对最终的结果打印输出
     resultData.map( a=> {
       println("我骚吗？"+a.toString)
     })
