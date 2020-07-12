@@ -139,12 +139,16 @@ object processCommon {
         time
       }
     })
-      .keyBy(_.application_id) //按照应用id为分组
+      //.keyBy(_.application_id) //按照我时间分组
+      //.keyBy() //按照应用id为分组
+      .keyBy(a => {
+        (a.application_id,a.event_code)
+      })
       .window(TumblingEventTimeWindows.of(Time.seconds(10)))
-      .apply(new WindowFunction[(CommonModel),(PvUvHourModelToMySql),String,TimeWindow]{
-        override def apply(key: String, window: TimeWindow, input: Iterable[(CommonModel)], out: Collector[(PvUvHourModelToMySql)]): Unit = {
+      .apply(new WindowFunction[(CommonModel),(PvUvHourModelToMySql),(String,String),TimeWindow]{
+        override def apply(key: (String,String), window: TimeWindow, input: Iterable[(CommonModel)], out: Collector[(PvUvHourModelToMySql)]): Unit = {
           val iterator = input.iterator //获取window内的 json集合
-          println("key ："+key)
+          println("key ："+key._1)
           var i=0
 //----------------------此代码是用于测试flink抽取日志时间是否准确
 //          while (iterator.hasNext){
@@ -160,7 +164,7 @@ object processCommon {
           var manager_num_rate: Long = 0
           var store_manager_num_rate: Long=0l
           var supervisor_num_rate: Long=0l
-          var application_id: Int=key.toInt
+          var application_id: Int=key._1.toInt
           var manager_num: Int=0
           var store_manager_num: Int=0
           var supervisor_num: Int=0
@@ -169,7 +173,7 @@ object processCommon {
           var date_time: String= ""
           var create_time: String= ""
           var day: String= ""
-          var event_code: String= ""
+          var event_code: String= key._2
           var uvList=List[String]()
 //        *******************请注意！ 以上的变量赋初始值不能使用 iterator获取下一个元素！！！不然下面的集合遍历得重新获取一个新的iterator
           val times = ArrayBuffer[Long]() //时间数组
@@ -191,7 +195,8 @@ object processCommon {
 
             //var time: String =""
             //time = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(new Date(next.syncTime.toLong))
-            println("***********这是第"+i+"个"+next.syncTime+"key:"+next.application_id+"ip:"+next.ip+"\tcreate_time"+next.create_time)
+            println("***********这是第"+i+"个"+next.syncTime+"key:"+next.application_id+"ip:"+next.ip+"\tcreate_time"+next.create_time+"\tcommon:"+
+              next.event_code)
             i+=1
           }
           //计算uv
