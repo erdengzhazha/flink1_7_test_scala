@@ -13,6 +13,7 @@ case class CommonModel(
                         event_code: String,
                         browser: String,
                         browser_version: String,
+                        stay_time: String,
                         lat: String,
                         screen_width: String,
                         create_time: String,
@@ -41,23 +42,25 @@ case class CommonModel(
     case 9 => event_code: String
     case 10 => browser: String
     case 11 => browser_version: String
-    case 12 => lat: String
-    case 13 => screen_width: String
-    case 14 => create_time: String
-    case 15 => os: String
-    case 16 => ip: String
-    case 17 => dept_name: String
-    case 18 => enterprise_id: String
-    case 19 => application_id: String
-    case 20 => token: String
-    case 21 => user_id: String
-    case 22 => location_lon: String
-    case 23 => location_lat: String
-    case 24 => dept_id: String
-    case 25 => isWdzSys: String
+    case 12 => stay_time: String
+    case 13 => lat: String
+    case 14 => screen_width: String
+    case 15 => create_time: String
+    case 16 => os: String
+    case 17 => ip: String
+    case 18 => dept_name: String
+    case 19 => enterprise_id: String
+    case 20 => application_id: String
+    case 21 => token: String
+    case 22 => user_id: String
+    case 23 => location_lon: String
+    case 24 => location_lat: String
+    case 25 => dept_id: String
+    case 26 => isWdzSys: String
+
     case _ => throw new IndexOutOfBoundsException(n.toString)
   }
-  override def productArity: Int = 26
+  override def productArity: Int = 27
 
   override def canEqual(that: Any): Boolean = that.isInstanceOf[CommonModel]
 

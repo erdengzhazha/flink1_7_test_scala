@@ -54,6 +54,7 @@ object processCommon {
       //------------------处理locationJson  结束-------------------
       var dept_id: String= resultArray.getString("dept_id")
       var isWdzSys: String= resultArray.getString("isWdzSys")
+      var stay_time: String= resultArray.getString("stay_time")
       //--------------------数据的格式处理 开始------------------
 
       //--------------------数据的格式处理 结束------------------
@@ -71,6 +72,7 @@ object processCommon {
         event_code,
         browser,
         browser_version,
+        stay_time,
         lat,
         screen_width,
         create_time,
@@ -136,6 +138,7 @@ object processCommon {
           var day: String= ""
           var event_code: String= key._2
           var uvList=List[String]()
+          var staytimeSum: Double =0.0
 //        *******************请注意！ 以上的变量赋初始值不能使用 iterator获取下一个元素！！！不然下面的集合遍历得重新获取一个新的iterator
           val times = ArrayBuffer[Long]() //时间数组
           while (iterator.hasNext){
@@ -144,23 +147,16 @@ object processCommon {
             pv+=1
             //将所有ip地址记录在list集合，然后去重得出uv
             uvList=next.ip::uvList
-            /*计算manager_num_rate
-              *1.计算 当前
-              *
-             */
             //---------------------计算各个role的数量  开始---------------------------
             manager_num = if(next.role.equals("-4")) manager_num+1 else manager_num  //计算高管
             store_manager_num = if(next.role.equals("-2")) store_manager_num+1 else store_manager_num //计算店长
             supervisor_num = if(next.role.equals("-3")) supervisor_num+1 else supervisor_num  //计算督导
             //---------------------计算各个role的数量  结束---------------------------
-
-            times.append(new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").parse(next.syncTime).getTime)
-            //var time: String =""
-            //time = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(new Date(next.syncTime.toLong))
+            times.append(next.create_time.toLong)
+            staytimeSum+=next.stay_time.toDouble //计算所有停留时长的和
             i+=1
             println("***********第"+i+"个"+next.syncTime+"key:"+next.application_id+"ip:"+next.ip+"\tcreate_time"+next.create_time+"\tcommon:"+
-              next.event_code+"\trole = "+next.role)
-
+              next.event_code+"\trole = "+next.role+"\t停留时长"+next.stay_time)
           }
           //计算uv
           uv=uvList.distinct.size //补足自身的一个值
@@ -169,7 +165,6 @@ object processCommon {
           store_manager_num_rate = store_manager_num/i //店长比例
           supervisor_num_rate = supervisor_num/i //督导比例
           //---------------------计算各个role的比例  结束-----计算公式各个role的数量/总数量-----
-
           //计算时间 原始create_time是一个long值
           try {
             day = new SimpleDateFormat("YYYY-MM-dd").format(new Date(iteratorSimple.next().create_time.toLong))
@@ -182,6 +177,8 @@ object processCommon {
               logger.error(s"time format error"+create_time)
             }
           }
+          //求平均停留时长 staytime
+          avg_stay_time = staytimeSum/i
           val a:PvUvHourModelToMySql = PvUvHourModelToMySql(pv,uv,manager_num_rate,store_manager_num_rate,supervisor_num_rate,
             application_id,manager_num,store_manager_num,supervisor_num,avg_stay_time,hour,date_time,create_time,
             day,event_code
@@ -194,7 +191,7 @@ object processCommon {
     resultData.map( a=> {
       println("最终的数据"+a.toString+"高管次数"+a.manager_num+"高管比例"+a.manager_num_rate
       +"店长次数"+a.store_manager_num+"店长比例"+a.store_manager_num_rate+"督导次数"+a.supervisor_num+"督导比例"+a.supervisor_num_rate
-      +"\ndatatime:"+a.date_time+"\tday"+a.day+"\thour:"+a.hour)
+      +"\ndatatime :"+a.date_time+"\tday"+a.day+"\thour :"+a.hour+"\t平均停留时长 :"+a.avg_stay_time)
     })
 
   }
