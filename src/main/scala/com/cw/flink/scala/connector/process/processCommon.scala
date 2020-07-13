@@ -1,6 +1,7 @@
 package com.cw.flink.scala.connector.process
 import java.text.SimpleDateFormat
 import java.util.Date
+
 import com.cw.flink.scala.pojo.PvUvHourModelToMySql
 import com.cw.flink.scala.pojo.CommonModel
 import com.alibaba.fastjson.JSON
@@ -14,11 +15,15 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.ArrayBuffer
 /**
  *  处理数据对象
  */
 object processCommon {
+  //在生产上记录日志
+  val logger = LoggerFactory.getLogger("processCommon")
   def process(data: DataStream[String]): Unit = {
     //---------------------------------数据清洗      开始--------------------------------------
     val logcat: DataStream[CommonModel] = data.map(str => {  //从kafka里面独处的每一行json数据  (注意这里的json数据最外层可能是数组)
@@ -115,12 +120,12 @@ object processCommon {
       .keyBy(a => {
         (a.application_id,a.event_code)  //同时对 应用id和事件变量分组
       })
-      .window(TumblingEventTimeWindows.of(Time.seconds(20))) //滑动EventTime窗口为 10秒
+      .window(TumblingEventTimeWindows.of(Time.seconds(10))) //滑动EventTime窗口为 10秒
       .apply(new WindowFunction[(CommonModel),(PvUvHourModelToMySql),(String,String),TimeWindow]{
         override def apply(key: (String,String), window: TimeWindow, input: Iterable[(CommonModel)], out: Collector[(PvUvHourModelToMySql)]): Unit = {
           val iterator = input.iterator //获取window内的 json集合
           val iteratorSimple = input.iterator //用于处理无需循环运算的数据
-          println("key ："+key._1)
+          logger.info("key ："+key._1)
           var i:Double=0.0 //测试用的计数变量不用关注 ｜这个变量有任务了，可以计算总人数
           var pv: Int = 0
           var uv: Int = 0
@@ -155,7 +160,7 @@ object processCommon {
             times.append(next.create_time.toLong)
             staytimeSum+=next.stay_time.toDouble //计算所有停留时长的和
             i+=1
-            println("***********第"+i+"个"+next.syncTime+"key:"+next.application_id+"ip:"+next.ip+"\tcreate_time"+next.create_time+"\tcommon:"+
+            logger.info("***********第"+i+"个"+next.syncTime+"key:"+next.application_id+"ip:"+next.ip+"\tcreate_time"+next.create_time+"\tcommon:"+
               next.event_code+"\trole = "+next.role+"\t停留时长"+next.stay_time)
           }
           //计算uv
@@ -185,11 +190,11 @@ object processCommon {
           )   //这是输出的类型
           out.collect(a)
         }
-      })
+      }).setParallelism(1)
 
     //对最终的结果打印输出
     resultData.map( a=> {
-      println("最终的数据"+a.toString+"高管次数"+a.manager_num+"高管比例"+a.manager_num_rate
+      logger.info("最终的数据"+a.toString+"高管次数"+a.manager_num+"高管比例"+a.manager_num_rate
       +"店长次数"+a.store_manager_num+"店长比例"+a.store_manager_num_rate+"督导次数"+a.supervisor_num+"督导比例"+a.supervisor_num_rate
       +"\ndatatime :"+a.date_time+"\tday"+a.day+"\thour :"+a.hour+"\t平均停留时长 :"+a.avg_stay_time)
     })
