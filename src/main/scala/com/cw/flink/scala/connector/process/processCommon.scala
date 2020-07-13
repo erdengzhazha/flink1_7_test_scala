@@ -117,6 +117,7 @@ object processCommon {
       .apply(new WindowFunction[(CommonModel),(PvUvHourModelToMySql),(String,String),TimeWindow]{
         override def apply(key: (String,String), window: TimeWindow, input: Iterable[(CommonModel)], out: Collector[(PvUvHourModelToMySql)]): Unit = {
           val iterator = input.iterator //获取window内的 json集合
+          val iteratorSimple = input.iterator //用于处理无需循环运算的数据
           println("key ："+key._1)
           var i:Double=0.0 //测试用的计数变量不用关注 ｜这个变量有任务了，可以计算总人数
           var pv: Int = 0
@@ -153,7 +154,6 @@ object processCommon {
             supervisor_num = if(next.role.equals("-3")) supervisor_num+1 else supervisor_num  //计算督导
             //---------------------计算各个role的数量  结束---------------------------
 
-
             times.append(new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").parse(next.syncTime).getTime)
             //var time: String =""
             //time = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(new Date(next.syncTime.toLong))
@@ -169,6 +169,9 @@ object processCommon {
           store_manager_num_rate = store_manager_num/i //店长比例
           supervisor_num_rate = supervisor_num/i //督导比例
           //---------------------计算各个role的比例  结束-----计算公式各个role的数量/总数量-----
+          //原始create_time是一个long值
+          day = new SimpleDateFormat("YYYY-MM-dd").format(new Date(iteratorSimple.next().create_time.toLong))
+          date_time = day+" 00:00:00"
           //计算时间
           try {
             create_time = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(new Date(times.max))
@@ -189,7 +192,7 @@ object processCommon {
     resultData.map( a=> {
       println("最终的数据"+a.toString+"高管次数"+a.manager_num+"高管比例"+a.manager_num_rate
       +"店长次数"+a.store_manager_num+"店长比例"+a.store_manager_num_rate+"督导次数"+a.supervisor_num+"督导比例"+a.supervisor_num_rate
-      )
+      +"\ndatatime:"+a.date_time+"\tday"+a.day)
     })
 
   }
