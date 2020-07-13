@@ -113,22 +113,22 @@ object processCommon {
       .keyBy(a => {
         (a.application_id,a.event_code)  //同时对 应用id和事件变量分组
       })
-      .window(TumblingEventTimeWindows.of(Time.seconds(10))) //滑动EventTime窗口为 10秒
+      .window(TumblingEventTimeWindows.of(Time.seconds(20))) //滑动EventTime窗口为 10秒
       .apply(new WindowFunction[(CommonModel),(PvUvHourModelToMySql),(String,String),TimeWindow]{
         override def apply(key: (String,String), window: TimeWindow, input: Iterable[(CommonModel)], out: Collector[(PvUvHourModelToMySql)]): Unit = {
           val iterator = input.iterator //获取window内的 json集合
           println("key ："+key._1)
-          var i=0 //测试用的计数变量不用关注
+          var i:Double=0.0 //测试用的计数变量不用关注 ｜这个变量有任务了，可以计算总人数
           var pv: Int = 0
           var uv: Int = 0
-          var manager_num_rate: Long = 0
-          var store_manager_num_rate: Long=0l
-          var supervisor_num_rate: Long=0l
+          var manager_num_rate: Double = 0.0
+          var store_manager_num_rate: Double=0.0
+          var supervisor_num_rate: Double=0.0
           var application_id: Int=key._1.toInt
-          var manager_num: Int=0
-          var store_manager_num: Int=0
-          var supervisor_num: Int=0
-          var avg_stay_time: Long=0l
+          var manager_num: Int=0 //高管数量
+          var store_manager_num: Int=0 //店长数量
+          var supervisor_num: Int=0  //督导数量
+          var avg_stay_time: Double=0.0
           var hour: Int=0
           var date_time: String= ""
           var create_time: String= ""
@@ -137,30 +137,38 @@ object processCommon {
           var uvList=List[String]()
 //        *******************请注意！ 以上的变量赋初始值不能使用 iterator获取下一个元素！！！不然下面的集合遍历得重新获取一个新的iterator
           val times = ArrayBuffer[Long]() //时间数组
-//          iterator.map( next => {
-//
-//          })
-//          println("iterator的长度为"+iterator.size)
           while (iterator.hasNext){
             var next =iterator.next()
             //计算pv
             pv+=1
-            //将所有ip地址记录在list集合
+            //将所有ip地址记录在list集合，然后去重得出uv
             uvList=next.ip::uvList
             /*计算manager_num_rate
               *1.计算 当前
               *
              */
-            times.append(new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").parse(next.syncTime).getTime)
+            //---------------------计算各个role的数量  开始---------------------------
+            manager_num = if(next.role.equals("-4")) manager_num+1 else manager_num  //计算高管
+            store_manager_num = if(next.role.equals("-2")) store_manager_num+1 else store_manager_num //计算店长
+            supervisor_num = if(next.role.equals("-3")) supervisor_num+1 else supervisor_num  //计算督导
+            //---------------------计算各个role的数量  结束---------------------------
 
+
+            times.append(new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").parse(next.syncTime).getTime)
             //var time: String =""
             //time = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(new Date(next.syncTime.toLong))
-            println("***********这是第"+i+"个"+next.syncTime+"key:"+next.application_id+"ip:"+next.ip+"\tcreate_time"+next.create_time+"\tcommon:"+
-              next.event_code)
             i+=1
+            println("***********第"+i+"个"+next.syncTime+"key:"+next.application_id+"ip:"+next.ip+"\tcreate_time"+next.create_time+"\tcommon:"+
+              next.event_code+"\trole = "+next.role)
+
           }
           //计算uv
           uv=uvList.distinct.size //补足自身的一个值
+          //---------------------计算各个role的比例  开始-----计算公式各个role的数量/总数量-----
+          manager_num_rate = manager_num/i; //高管比例
+          store_manager_num_rate = store_manager_num/i //店长比例
+          supervisor_num_rate = supervisor_num/i //督导比例
+          //---------------------计算各个role的比例  结束-----计算公式各个role的数量/总数量-----
           //计算时间
           try {
             create_time = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(new Date(times.max))
@@ -179,7 +187,9 @@ object processCommon {
 
     //对最终的结果打印输出
     resultData.map( a=> {
-      println("我骚吗？"+a.toString)
+      println("最终的数据"+a.toString+"高管次数"+a.manager_num+"高管比例"+a.manager_num_rate
+      +"店长次数"+a.store_manager_num+"店长比例"+a.store_manager_num_rate+"督导次数"+a.supervisor_num+"督导比例"+a.supervisor_num_rate
+      )
     })
 
   }

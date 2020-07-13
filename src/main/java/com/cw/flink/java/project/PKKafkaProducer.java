@@ -81,8 +81,13 @@ public class PKKafkaProducer {
     public static String getMessage(){
         SimpleDateFormat smp =new SimpleDateFormat("YYYY-MM-dd HH:mm:ss");
 
-        return "{\"country\":\"中国\",\"syncTime\":\""+smp.format(new Date())+"\",\"role\":0,\"city\":\"苏州\",\"lon\":120.5954,\"type\":1,\"lib_version\":\"1.0.0\",\"screen_height\":0,\"province\":\"江苏省\",\"event_code\":\""+getEvenCode()+"\",\"browser\":\"\",\"browser_version\":\"\",\"lat\":31.3041,\"screen_width\":0,\"create_time\":1594366141822,\"os\":\"\",\"ip\":\""+getIps().getIp()+"\",\"dept_name\":\"极味鲜\",\"enterprise_id\":0,\"application_id\":"+new Random().nextInt(10)+",\"token\":\"\",\"user_id\":1300,\"location\":{\"lon\":120.5954,\"lat\":31.3041},\"dept_id\":79,\"isWdzSys\":false}";
+        return "{\"country\":\"中国\",\"syncTime\":\""+smp.format(new Date())+"\",\"role\":"+getRole()+",\"city\":\"苏州\",\"lon\":120.5954,\"type\":1,\"lib_version\":\"1.0.0\",\"screen_height\":0,\"province\":\"江苏省\",\"event_code\":\""+getEvenCode()+"\",\"browser\":\"\",\"browser_version\":\"\",\"lat\":31.3041,\"screen_width\":0,\"create_time\":1594366141822,\"os\":\"\",\"ip\":\""+getIps().getIp()+"\",\"dept_name\":\"极味鲜\",\"enterprise_id\":0,\"application_id\":"+new Random().nextInt(10)+",\"token\":\"\",\"user_id\":1300,\"location\":{\"lon\":120.5954,\"lat\":31.3041},\"dept_id\":79,\"isWdzSys\":false}";
 
+    }
+
+    private static String getRole(){
+        String[] str = new String[]{"-4","-2","-3"};
+        return str[new Random().nextInt(str.length)];
     }
 
     public static String getEvenCode(){
