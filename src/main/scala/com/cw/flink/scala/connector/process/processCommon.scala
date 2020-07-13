@@ -169,12 +169,14 @@ object processCommon {
           store_manager_num_rate = store_manager_num/i //店长比例
           supervisor_num_rate = supervisor_num/i //督导比例
           //---------------------计算各个role的比例  结束-----计算公式各个role的数量/总数量-----
-          //原始create_time是一个long值
-          day = new SimpleDateFormat("YYYY-MM-dd").format(new Date(iteratorSimple.next().create_time.toLong))
-          date_time = day+" 00:00:00"
-          //计算时间
+
+          //计算时间 原始create_time是一个long值
           try {
+            day = new SimpleDateFormat("YYYY-MM-dd").format(new Date(iteratorSimple.next().create_time.toLong))
+            date_time = day+" 00:00:00"
             create_time = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(new Date(times.max))
+            //从create_time中获取hour
+            hour = create_time.substring(11,13).toInt
           }catch {
             case e:Exception => {
               logger.error(s"time format error"+create_time)
@@ -192,7 +194,7 @@ object processCommon {
     resultData.map( a=> {
       println("最终的数据"+a.toString+"高管次数"+a.manager_num+"高管比例"+a.manager_num_rate
       +"店长次数"+a.store_manager_num+"店长比例"+a.store_manager_num_rate+"督导次数"+a.supervisor_num+"督导比例"+a.supervisor_num_rate
-      +"\ndatatime:"+a.date_time+"\tday"+a.day)
+      +"\ndatatime:"+a.date_time+"\tday"+a.day+"\thour:"+a.hour)
     })
 
   }
